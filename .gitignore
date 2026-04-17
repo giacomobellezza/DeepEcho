@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Build output
+frontend/dist/
+
+# Data & resources (large files)
+data/
+risorse/
+
+# Environment
+.env
+.env.*
+*.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
+.pytest_cache/
+backend/.pytest_cache/
+
+# Worktrees
+.worktrees/
+
+# Claude
+.claude/
+
+# Graphify output
+graphify-out/
+
+# Demo data (large WAV)
+frontend/public/audio_demo.wav
+frontend/public/prh_demo.csv
+frontend/public/events_demo.csv
+
+# Misc
+todo.md
+DEVELOPMENT.md
+docs/superpowers/

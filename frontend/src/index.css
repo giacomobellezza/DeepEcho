@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #0a0a0f;
+  --color-card-foreground: #fafafa;
+  --color-border: #27272a;
+  --color-muted: #18181b;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #3b82f6;
+  --color-accent-foreground: #fafafa;
+  --color-destructive: #ef4444;
+  --color-ring: #3b82f6;
+  --radius: 0.5rem;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
+
+/* react-grid-layout styles */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-accent);
+  opacity: 0.15;
+  border-radius: var(--radius);
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--color-muted-foreground);
+  border-bottom: 2px solid var(--color-muted-foreground);
+}
+
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.animate-progress {
+  width: 25%;
+  animation: progress 1.2s ease-in-out infinite;
+}
