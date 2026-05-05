@@ -19,7 +19,7 @@ const PROFILES = {
     headRatio: 0.33, maxWidth: 0.20, maxHeight: 0.24,
     headBulge: 1.5, tailTaper: 0.6,
     dorsalColor: '#5a6a72', ventralColor: '#a0aab0',
-    dorsalHeight: 0.3, dorsalPos: 0.65,
+    dorsalHeight: 0.6, dorsalPos: 0.65,
     pectoralLen: 0.12, pectoralPos: 0.28,
     flukeSpan: 1.8, flukeLen: 0.22,
   },
@@ -27,7 +27,7 @@ const PROFILES = {
     headRatio: 0.20, maxWidth: 0.14, maxHeight: 0.16,
     headBulge: 1.0, tailTaper: 0.7,
     dorsalColor: '#4a5a6a', ventralColor: '#c0c8d0',
-    dorsalHeight: 0.6, dorsalPos: 0.60,
+    dorsalHeight: 1.0, dorsalPos: 0.60,
     pectoralLen: 0.10, pectoralPos: 0.25,
     flukeSpan: 2.0, flukeLen: 0.20,
   },
@@ -35,7 +35,7 @@ const PROFILES = {
     headRatio: 0.25, maxWidth: 0.22, maxHeight: 0.24,
     headBulge: 1.15, tailTaper: 0.55,
     dorsalColor: '#2d3f4f', ventralColor: '#e8e8e0',
-    dorsalHeight: 0.4, dorsalPos: 0.62,
+    dorsalHeight: 0.8, dorsalPos: 0.62,
     pectoralLen: 0.28, pectoralPos: 0.27,
     flukeSpan: 2.4, flukeLen: 0.25,
   },
@@ -43,7 +43,7 @@ const PROFILES = {
     headRatio: 0.18, maxWidth: 0.14, maxHeight: 0.16,
     headBulge: 1.05, tailTaper: 0.75,
     dorsalColor: '#3a6a9a', ventralColor: '#b0c8e0',
-    dorsalHeight: 0.25, dorsalPos: 0.72,
+    dorsalHeight: 0.5, dorsalPos: 0.72,
     pectoralLen: 0.10, pectoralPos: 0.22,
     flukeSpan: 2.0, flukeLen: 0.20,
   },
@@ -51,7 +51,7 @@ const PROFILES = {
     headRatio: 0.20, maxWidth: 0.22, maxHeight: 0.26,
     headBulge: 1.1, tailTaper: 0.6,
     dorsalColor: '#0a0a12', ventralColor: '#f0f0f0',  // black & white
-    dorsalHeight: 1.4, dorsalPos: 0.50,
+    dorsalHeight: 2.0, dorsalPos: 0.50,
     pectoralLen: 0.14, pectoralPos: 0.27,
     flukeSpan: 1.8, flukeLen: 0.20,
   },
@@ -59,7 +59,7 @@ const PROFILES = {
     headRatio: 0.18, maxWidth: 0.16, maxHeight: 0.18,
     headBulge: 1.05, tailTaper: 0.65,
     dorsalColor: '#607080', ventralColor: '#d0d8e0',
-    dorsalHeight: 0.9, dorsalPos: 0.48,
+    dorsalHeight: 1.4, dorsalPos: 0.48,
     pectoralLen: 0.10, pectoralPos: 0.25,
     flukeSpan: 1.6, flukeLen: 0.18,
   },
@@ -199,11 +199,20 @@ function computeFaceColors(faces, bodyZ, dorsalColor, ventralColor) {
   }
   const zRange = zMax - zMin || 1
 
+  const stripeHalfWidth = 0.04  // ±4% of body height around midline
   for (const [i, j, k] of faces) {
     // Average z of face vertices in body frame
     const avgZ = (bodyZ[i] + bodyZ[j] + bodyZ[k]) / 3
     // 0 = ventral (bottom), 1 = dorsal (top)
-    const factor = (avgZ - zMin) / zRange
+    const t = (avgZ - zMin) / zRange
+    // White lateral midline stripe → roll twists it like a barber pole.
+    if (Math.abs(t - 0.5) < stripeHalfWidth) {
+      colors.push('rgb(245,245,245)')
+      continue
+    }
+    // Steep sigmoid around midline → near-binary countershading.
+    const k2 = 14
+    const factor = 1 / (1 + Math.exp(-k2 * (t - 0.5)))
     colors.push(lerpColor(ventralColor, dorsalColor, factor))
   }
   return colors
@@ -214,12 +223,14 @@ function computeFaceColors(faces, bodyZ, dorsalColor, ventralColor) {
  *
  * Order: Roll (Rx) → Pitch (Ry) → Heading (Rz)
  *
- * Conventions (matching backend compute_trajectory):
- *   heading: compass degrees; heading=0→+x, heading=90→-y
- *   pitch: positive = nose down (matches PRH tag convention)
+ * Conventions (matching backend compute_trajectory + animaltag PRH):
+ *   heading: degrees; heading=0→+x, heading=90→-y
+ *   pitch: positive = nose UP (animaltag PRH convention)
  *   roll: positive = right side down
  *
- * After rotation, z is NEGATED to convert body z-up to world z-down (depth).
+ * After rotation, body z is NEGATED to convert body z-up to world z-down (depth).
+ * Net nose direction in world (z-down): (cos h cos p, -sin h cos p, -sin p),
+ * matching the velocity tangent of the backend trajectory.
  */
 function rotate(v, pitchDeg, rollDeg, headingDeg) {
   let [x, y, z] = v
@@ -231,12 +242,13 @@ function rotate(v, pitchDeg, rollDeg, headingDeg) {
   let nz = y * sr + z * cr
   y = ny; z = nz
 
-  // Pitch around Y — positive pitchDeg = nose down
-  // With z-flip after, positive pitch → nose toward +world_z (deeper) = correct
+  // Pitch around Y — positive pitch = nose up.
+  // Body nose (1,0,0) → (cos p, 0, sin p); after final z-flip world_z = -sin p,
+  // so positive pitch → nose toward -world_z (shallower) = nose up. Correct.
   const pr = (pitchDeg * Math.PI) / 180
   const cp = Math.cos(pr), sp = Math.sin(pr)
-  let nx = x * cp + z * sp
-  nz = -x * sp + z * cp
+  let nx = x * cp - z * sp
+  nz = x * sp + z * cp
   x = nx; z = nz
 
   // Heading around Z
@@ -273,7 +285,7 @@ export function buildCetaceanTrace({ species, scale, position, pitch, roll, head
     j: faces.map((f) => f[1]),
     k: faces.map((f) => f[2]),
     facecolor: faceColors,
-    opacity: 0.92,
+    opacity: 1.0,
     flatshading: true,
     lighting: { ambient: 0.5, diffuse: 0.9, specular: 0.3, roughness: 0.6 },
     lightposition: { x: 100, y: 200, z: -100 },
