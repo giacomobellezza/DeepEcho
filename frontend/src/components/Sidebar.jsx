@@ -35,11 +35,21 @@ export default function Sidebar() {
   const { selectedInterval, setSelectedInterval } = useTimelineStore()
   const { panels, togglePanel, resetLayout } = useLayoutStore()
   const [eventFilter, setEventFilter] = useState('')
+  const [detected, setDetected] = useState({ wav: null, prh: null, events: null, metadata: null })
   const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram } = useSettingsStore()
 
   const wavRef = useRef(null)
   const prhRef = useRef(null)
   const eventsRef = useRef(null)
+  const folderRef = useRef(null)
+
+  // Enable directory selection on the folder input (non-standard attributes)
+  useEffect(() => {
+    if (folderRef.current) {
+      folderRef.current.setAttribute('webkitdirectory', '')
+      folderRef.current.setAttribute('directory', '')
+    }
+  }, [])
 
   // Auto-load demo files on mount
   useEffect(() => {
@@ -74,6 +84,32 @@ export default function Sidebar() {
     const events = eventsRef.current?.files?.[0]
     if (!wav || !prh || !events) return
     await upload(wav, prh, events)
+  }
+
+  const classifyFile = (file) => {
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.wav')) return 'wav'
+    if (name.endsWith('.json') || name.includes('meta')) return 'metadata'
+    if (name.includes('prh') || name.includes('10hz')) return 'prh'
+    if (name.includes('signal') || name.includes('event')) return 'events'
+    if (name.endsWith('.txt')) return 'metadata'
+    if (name.endsWith('.csv')) return 'events' // last-resort csv
+    return null
+  }
+
+  const handleFolderSelect = (e) => {
+    const files = Array.from(e.target.files || [])
+    const next = { wav: null, prh: null, events: null, metadata: null }
+    for (const f of files) {
+      const role = classifyFile(f)
+      if (role && !next[role]) next[role] = f
+    }
+    setDetected(next)
+  }
+
+  const handleFolderUpload = async () => {
+    if (!detected.wav || !detected.prh || !detected.events) return
+    await upload(detected.wav, detected.prh, detected.events, detected.metadata)
   }
 
   const handleAnalyze = async () => {
@@ -164,6 +200,33 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto">
         {/* Upload */}
         <Section title="Upload" defaultOpen={!deployment}>
+          <label htmlFor="folder-input" className="block text-xs text-muted-foreground">Upload deployment folder</label>
+          <input
+            id="folder-input"
+            ref={folderRef}
+            type="file"
+            multiple
+            onChange={handleFolderSelect}
+            className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer"
+            aria-label="Select deployment folder"
+          />
+          {(detected.wav || detected.prh || detected.events || detected.metadata) && (
+            <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
+              <div>WAV: {detected.wav?.name || <span className="text-destructive">missing</span>}</div>
+              <div>PRH: {detected.prh?.name || <span className="text-destructive">missing</span>}</div>
+              <div>Events: {detected.events?.name || <span className="text-destructive">missing</span>}</div>
+              <div>Metadata: {detected.metadata?.name || <span className="italic">none (optional)</span>}</div>
+            </div>
+          )}
+          <button
+            onClick={handleFolderUpload}
+            disabled={isLoading || !detected.wav || !detected.prh || !detected.events}
+            className="w-full py-1.5 px-3 text-sm font-medium rounded bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors"
+            aria-label="Upload detected deployment folder"
+          >
+            {isLoading ? 'Uploading...' : 'Upload folder'}
+          </button>
+          <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">Or select files manually:</p>
           <div className="space-y-1.5">
             <label htmlFor="wav-input" className="block text-xs text-muted-foreground">WAV Audio</label>
             <input id="wav-input" ref={wavRef} type="file" accept=".wav" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select WAV audio file" />
