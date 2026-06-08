@@ -5,11 +5,13 @@ import { useTimelineStore } from '../../stores/timelineStore'
 import { useSettingsStore, SPECIES } from '../../stores/settingsStore'
 import { buildCetaceanTrace, hasModel } from '../../lib/cetaceanMesh'
 import { detectPreyCaptures } from '../../lib/preyDetection'
+import { usePlotTheme } from '../../hooks/usePlotTheme'
 
 export default function TrajectoryPlot() {
   const { analysisData, fetchTrajectory } = useDeploymentStore()
   const { currentTime } = useTimelineStore()
   const { species } = useSettingsStore()
+  const theme = usePlotTheme()
   const speciesName = SPECIES.find((s) => s.id === species)?.name ?? ''
   const [trajectoryData, setTrajectoryData] = useState(null)
 
@@ -128,22 +130,22 @@ export default function TrajectoryPlot() {
       data: traces,
       layout: {
         scene: {
-          xaxis: { title: 'East (m)', color: '#a1a1aa', gridcolor: '#27272a' },
-          yaxis: { title: 'North (m)', color: '#a1a1aa', gridcolor: '#27272a' },
-          zaxis: { title: 'Depth (m)', color: '#a1a1aa', gridcolor: '#27272a', autorange: 'reversed' },
-          bgcolor: '#09090b',
+          xaxis: { title: 'East (m)', color: theme.axis, gridcolor: theme.grid },
+          yaxis: { title: 'North (m)', color: theme.axis, gridcolor: theme.grid },
+          zaxis: { title: 'Depth (m)', color: theme.axis, gridcolor: theme.grid, autorange: 'reversed' },
+          bgcolor: theme.plot,
           aspectmode: 'data',
         },
         margin: { t: 24, b: 10, l: 10, r: 10 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: theme.paper,
         showlegend: true,
         legend: {
-          x: 0, y: 1, font: { size: 10, color: '#a1a1aa' },
+          x: 0, y: 1, font: { size: 10, color: theme.axis },
           bgcolor: 'rgba(0,0,0,0)',
         },
       },
     }
-  }, [trajectoryData, currentTime, analysisData, speciesName, species])
+  }, [trajectoryData, currentTime, analysisData, speciesName, species, theme])
 
   if (!trajectoryData?.dx) {
     return (

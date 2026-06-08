@@ -3,10 +3,12 @@ import Plot from 'react-plotly.js'
 import { useDeploymentStore, API_BASE } from '../../stores/deploymentStore'
 import { useTimelineStore } from '../../stores/timelineStore'
 import { useSyncedPlotly } from '../../hooks/useSyncedPlotly'
+import { usePlotTheme } from '../../hooks/usePlotTheme'
 
 export default function WaveformPlot() {
   const { analysisData } = useDeploymentStore()
   const { plotRef, onHover, onRelayout, currentTime, xRange } = useSyncedPlotly()
+  const theme = usePlotTheme()
   const { setCurrentTime } = useTimelineStore()
   const audioCtxRef = useRef(null)
   const sourceRef = useRef(null)
@@ -101,17 +103,17 @@ export default function WaveformPlot() {
       }],
       layout: {
         xaxis: {
-          title: { text: 'Time (s)', font: { size: 10, color: '#a1a1aa' } },
-          color: '#a1a1aa', gridcolor: '#27272a',
+          title: { text: 'Time (s)', font: { size: 10, color: theme.axis } },
+          color: theme.axis, gridcolor: theme.grid,
           ...(xRange ? { range: xRange } : {}),
         },
         yaxis: {
-          title: { text: 'Amplitude', font: { size: 10, color: '#a1a1aa' } },
-          color: '#a1a1aa', gridcolor: '#27272a',
+          title: { text: 'Amplitude', font: { size: 10, color: theme.axis } },
+          color: theme.axis, gridcolor: theme.grid,
         },
         margin: { t: 10, b: 40, l: 50, r: 10 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: '#09090b',
+        paper_bgcolor: theme.paper,
+        plot_bgcolor: theme.plot,
         showlegend: false,
         shapes: currentTime > 0 ? [{
           type: 'line', x0: currentTime, x1: currentTime, y0: 0, y1: 1,
@@ -119,7 +121,7 @@ export default function WaveformPlot() {
         }] : [],
       },
     }
-  }, [analysisData, currentTime, xRange])
+  }, [analysisData, currentTime, xRange, theme])
 
   if (!analysisData?.audio_slice?.length) {
     return (

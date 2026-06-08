@@ -3,10 +3,12 @@ import Plot from 'react-plotly.js'
 import { useDeploymentStore } from '../../stores/deploymentStore'
 import { useSyncedPlotly } from '../../hooks/useSyncedPlotly'
 import { detectPreyCaptures } from '../../lib/preyDetection'
+import { usePlotTheme } from '../../hooks/usePlotTheme'
 
 export default function JerkFlukePlot() {
   const { analysisData } = useDeploymentStore()
   const { plotRef, onHover, onRelayout, currentTime, xRange } = useSyncedPlotly()
+  const theme = usePlotTheme()
 
   const { data, layout } = useMemo(() => {
     if (!analysisData?.jerk?.length) return { data: [], layout: {} }
@@ -40,24 +42,24 @@ export default function JerkFlukePlot() {
       ],
       layout: {
         xaxis: {
-          title: { text: 'Time (s)', font: { size: 10, color: '#a1a1aa' } },
-          color: '#a1a1aa', gridcolor: '#27272a',
+          title: { text: 'Time (s)', font: { size: 10, color: theme.axis } },
+          color: theme.axis, gridcolor: theme.grid,
           ...(xRange ? { range: xRange } : {}),
         },
         yaxis: {
           title: { text: 'Jerk', font: { size: 10, color: '#f59e0b' } },
-          color: '#f59e0b', gridcolor: '#27272a',
+          color: '#f59e0b', gridcolor: theme.grid,
         },
         yaxis2: {
           title: { text: 'Fluke Stroke', font: { size: 10, color: '#06b6d4' } },
           color: '#06b6d4', overlaying: 'y', side: 'right',
         },
         margin: { t: 10, b: 40, l: 50, r: 50 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: '#09090b',
+        paper_bgcolor: theme.paper,
+        plot_bgcolor: theme.plot,
         legend: {
           x: 0.5, y: 1.05, xanchor: 'center', orientation: 'h',
-          font: { size: 10, color: '#a1a1aa' }, bgcolor: 'rgba(0,0,0,0)',
+          font: { size: 10, color: theme.axis }, bgcolor: 'rgba(0,0,0,0)',
         },
         showlegend: true,
         shapes: currentTime > 0 ? [{
@@ -66,7 +68,7 @@ export default function JerkFlukePlot() {
         }] : [],
       },
     }
-  }, [analysisData, currentTime, xRange])
+  }, [analysisData, currentTime, xRange, theme])
 
   if (!analysisData?.jerk?.length) {
     return (

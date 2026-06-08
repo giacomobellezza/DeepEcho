@@ -3,10 +3,12 @@ import Plot from 'react-plotly.js'
 import { useDeploymentStore } from '../../stores/deploymentStore'
 import { useSyncedPlotly } from '../../hooks/useSyncedPlotly'
 import { detectDives } from '../../lib/diveDetect'
+import { usePlotTheme } from '../../hooks/usePlotTheme'
 
 export default function DivePanel() {
   const { analysisData } = useDeploymentStore()
   const { plotRef, onHover, onRelayout, currentTime, xRange } = useSyncedPlotly()
+  const theme = usePlotTheme()
 
   const { data, layout, dives } = useMemo(() => {
     if (!analysisData?.depth?.length) return { data: [], layout: {}, dives: [] }
@@ -35,28 +37,28 @@ export default function DivePanel() {
       data: [
         {
           type: 'scatter', mode: 'lines', x: times, y: analysisData.depth,
-          name: 'Depth', line: { color: '#e2e8f0', width: 1.5 },
+          name: 'Depth', line: { color: theme.axis, width: 1.5 },
           hovertemplate: 'Time: %{x:.2f}s<br>Depth: %{y:.1f}m<extra></extra>',
         },
       ],
       layout: {
         xaxis: {
-          title: { text: 'Time (s)', font: { size: 10, color: '#a1a1aa' } },
-          color: '#a1a1aa', gridcolor: '#27272a',
+          title: { text: 'Time (s)', font: { size: 10, color: theme.axis } },
+          color: theme.axis, gridcolor: theme.grid,
           ...(xRange ? { range: xRange } : {}),
         },
         yaxis: {
-          title: { text: 'Depth (m)', font: { size: 10, color: '#a1a1aa' } },
-          color: '#a1a1aa', gridcolor: '#27272a', autorange: 'reversed',
+          title: { text: 'Depth (m)', font: { size: 10, color: theme.axis } },
+          color: theme.axis, gridcolor: theme.grid, autorange: 'reversed',
         },
         margin: { t: 10, b: 40, l: 50, r: 10 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: '#09090b',
+        paper_bgcolor: theme.paper,
+        plot_bgcolor: theme.plot,
         showlegend: false,
         shapes,
       },
     }
-  }, [analysisData, currentTime, xRange])
+  }, [analysisData, currentTime, xRange, theme])
 
   if (!analysisData?.depth?.length) {
     return (
