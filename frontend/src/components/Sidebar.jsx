@@ -66,6 +66,13 @@ export default function Sidebar() {
         const prhBlob = await prhRes.blob()
         const eventsBlob = await eventsRes.blob()
 
+        // When the demo files are absent, the dev server's SPA fallback returns
+        // index.html with a 200, which would be uploaded as a bogus WAV. Verify
+        // the WAV really starts with the RIFF magic bytes before continuing.
+        const head = new Uint8Array(await wavBlob.slice(0, 4).arrayBuffer())
+        const isRiff = head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46
+        if (!isRiff) return
+
         const wavFile = new File([wavBlob], 'audio_demo.wav', { type: 'audio/wav' })
         const prhFile = new File([prhBlob], 'prh_demo.csv', { type: 'text/csv' })
         const eventsFile = new File([eventsBlob], 'events_demo.csv', { type: 'text/csv' })
