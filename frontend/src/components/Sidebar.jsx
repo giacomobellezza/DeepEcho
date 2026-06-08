@@ -3,6 +3,7 @@ import { useDeploymentStore } from '../stores/deploymentStore'
 import { useTimelineStore } from '../stores/timelineStore'
 import { useLayoutStore, PANEL_LABELS } from '../stores/layoutStore'
 import { useSettingsStore, SPECIES } from '../stores/settingsStore'
+import { formatDurationSSFF, clockFromTimestamp } from '../lib/utils'
 
 const EVENT_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899']
 function eventColor(type) {
@@ -36,6 +37,7 @@ export default function Sidebar() {
   const { panels, togglePanel, resetLayout } = useLayoutStore()
   const [eventFilter, setEventFilter] = useState('')
   const [detected, setDetected] = useState({ wav: null, prh: null, events: null, metadata: null })
+  const [manualSel, setManualSel] = useState({ wav: false, prh: false, events: false })
   const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram, timeFormat, setTimeFormat } = useSettingsStore()
 
   const wavRef = useRef(null)
@@ -236,20 +238,30 @@ export default function Sidebar() {
           <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">Or select files manually:</p>
           <div className="space-y-1.5">
             <label htmlFor="wav-input" className="block text-xs text-muted-foreground">WAV Audio</label>
-            <input id="wav-input" ref={wavRef} type="file" accept=".wav" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select WAV audio file" />
+            <input id="wav-input" ref={wavRef} type="file" accept=".wav" onChange={(e) => setManualSel((s) => ({ ...s, wav: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select WAV audio file" />
             <label htmlFor="prh-input" className="block text-xs text-muted-foreground">PRH CSV</label>
-            <input id="prh-input" ref={prhRef} type="file" accept=".csv,.txt" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select PRH motion data CSV" />
+            <input id="prh-input" ref={prhRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, prh: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select PRH motion data CSV" />
             <label htmlFor="events-input" className="block text-xs text-muted-foreground">Events CSV</label>
-            <input id="events-input" ref={eventsRef} type="file" accept=".csv,.txt" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select events CSV file" />
+            <input id="events-input" ref={eventsRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, events: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select events CSV file" />
           </div>
-          <button
-            onClick={handleUpload}
-            disabled={isLoading}
-            className="w-full py-1.5 px-3 text-sm font-medium rounded bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors"
-            aria-label="Upload WAV, PRH, and events files"
-          >
-            {isLoading ? 'Uploading...' : 'Upload Files'}
-          </button>
+          {(() => {
+            const manualReady = manualSel.wav && manualSel.prh && manualSel.events
+            return (
+              <button
+                onClick={handleUpload}
+                disabled={isLoading || !manualReady}
+                className={`w-full py-1.5 px-3 text-sm font-medium rounded transition-colors ${
+                  manualReady
+                    ? 'bg-accent text-accent-foreground hover:bg-accent/80'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                } disabled:opacity-50`}
+                aria-label="Upload WAV, PRH, and events files"
+                title={manualReady ? 'Upload selected files' : 'Select WAV, PRH and Events files first'}
+              >
+                {isLoading ? 'Uploading...' : 'Upload Files'}
+              </button>
+            )
+          })()}
           {error && <p className="text-xs text-destructive">{error}</p>}
           {deployment && (
             <p className="text-xs text-green-400">
@@ -389,6 +401,7 @@ export default function Sidebar() {
                 const color = eventColor(type)
                 const startIdx = event.DN_start_idx || event.start_idx
                 const endIdx = event.DN_end_idx || event.end_idx
+                const clock = clockFromTimestamp(event.start_ts)
                 const isActive = selectedInterval.start_idx === startIdx && selectedInterval.end_idx === endIdx
                 return (
                   <button
@@ -400,9 +413,10 @@ export default function Sidebar() {
                     aria-label={`Jump to ${type} event at samples ${startIdx}-${endIdx}`}
                   >
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                    <span className="font-medium text-foreground">{type}</span>
-                    <span className="text-muted-foreground ml-auto">
-                      {((endIdx - startIdx) / 10).toFixed(0)}s
+                    <span className="font-medium text-foreground truncate">{type}</span>
+                    {clock && <span className="text-muted-foreground font-mono ml-auto">{clock}</span>}
+                    <span className={`text-muted-foreground font-mono ${clock ? 'w-14 text-right' : 'ml-auto'}`}>
+                      {formatDurationSSFF((endIdx - startIdx) / 10)}
                     </span>
                   </button>
                 )

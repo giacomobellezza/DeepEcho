@@ -4,6 +4,23 @@ import { useDeploymentStore } from '../../stores/deploymentStore'
 import { useSyncedPlotly } from '../../hooks/useSyncedPlotly'
 import { usePlotTheme } from '../../hooks/usePlotTheme'
 
+// Insert a null break where consecutive angle values jump more than `threshold`
+// (e.g. heading wrapping 359°→0° or roll ±180°), so Plotly does not draw a
+// vertical line across the wrap. Returns parallel x/y arrays.
+function withWrapBreaks(times, values, threshold = 180) {
+  const xs = []
+  const ys = []
+  for (let i = 0; i < values.length; i++) {
+    if (i > 0 && Math.abs(values[i] - values[i - 1]) > threshold) {
+      xs.push(times[i])
+      ys.push(null)
+    }
+    xs.push(times[i])
+    ys.push(values[i])
+  }
+  return { xs, ys }
+}
+
 export default function PRHPlot() {
   const { analysisData } = useDeploymentStore()
   const { plotRef, onHover, onRelayout, currentTime, xRange } = useSyncedPlotly()
@@ -15,21 +32,25 @@ export default function PRHPlot() {
     const duration = (analysisData.end_idx - analysisData.start_idx) / 10 || n / 10
     const times = Array.from({ length: n }, (_, i) => (i / n) * duration)
 
+    const pitchSeries = withWrapBreaks(times, analysisData.pitch)
+    const rollSeries = withWrapBreaks(times, analysisData.roll)
+    const headingSeries = withWrapBreaks(times, analysisData.heading)
+
     return {
       data: [
         {
-          type: 'scatter', mode: 'lines', x: times, y: analysisData.pitch,
-          name: 'Pitch', line: { color: '#3b82f6', width: 1.5 },
+          type: 'scatter', mode: 'lines', x: pitchSeries.xs, y: pitchSeries.ys,
+          name: 'Pitch', line: { color: '#3b82f6', width: 1.5 }, connectgaps: false,
           hovertemplate: 'Time: %{x:.2f}s<br>Pitch: %{y:.1f}&deg;<extra>Pitch</extra>',
         },
         {
-          type: 'scatter', mode: 'lines', x: times, y: analysisData.roll,
-          name: 'Roll', line: { color: '#22c55e', width: 1.5 },
+          type: 'scatter', mode: 'lines', x: rollSeries.xs, y: rollSeries.ys,
+          name: 'Roll', line: { color: '#22c55e', width: 1.5 }, connectgaps: false,
           hovertemplate: 'Time: %{x:.2f}s<br>Roll: %{y:.1f}&deg;<extra>Roll</extra>',
         },
         {
-          type: 'scatter', mode: 'lines', x: times, y: analysisData.heading,
-          name: 'Heading', line: { color: '#ef4444', width: 1.5 },
+          type: 'scatter', mode: 'lines', x: headingSeries.xs, y: headingSeries.ys,
+          name: 'Heading', line: { color: '#ef4444', width: 1.5 }, connectgaps: false,
           hovertemplate: 'Time: %{x:.2f}s<br>Heading: %{y:.1f}&deg;<extra>Heading</extra>',
         },
       ],

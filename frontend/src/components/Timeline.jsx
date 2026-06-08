@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useDeploymentStore } from '../stores/deploymentStore'
 import { useTimelineStore } from '../stores/timelineStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -11,6 +11,12 @@ export default function Timeline() {
   const { currentTime, setCurrentTime, selectedInterval, setSelectedInterval, xRange, setXRange } = useTimelineStore()
   const { timeFormat } = useSettingsStore()
   const deploymentStart = deployment?.metadata?.deployment_start || null
+  // Unit for the interval Start/End inputs: seconds or minutes.
+  const [unit, setUnit] = useState('s')
+  const unitFactor = unit === 'min' ? 60 : 1
+  const unitStep = unit === 'min' ? 0.01 : 0.1
+  const fmtUnit = (sec) => (sec / unitFactor).toFixed(unit === 'min' ? 2 : 1)
+  const toIdx = (val) => Math.round((parseFloat(val || 0) * unitFactor) * PRH_HZ)
 
   // Duration = current analyzed interval
   const intervalDuration = analysisData
@@ -47,7 +53,7 @@ export default function Timeline() {
         </span>
       </div>
 
-      {/* Interval selector — in seconds */}
+      {/* Interval selector — seconds or minutes */}
       <div className="flex items-center gap-3 text-xs">
         <span className="text-muted-foreground">Interval:</span>
         <label className="flex items-center gap-1 text-muted-foreground">
@@ -55,39 +61,46 @@ export default function Timeline() {
           <input
             type="number"
             min={0}
-            max={totalDuration}
-            step={0.1}
-            value={startSec.toFixed(1)}
+            max={totalDuration / unitFactor}
+            step={unitStep}
+            value={fmtUnit(startSec)}
             onChange={(e) =>
               setSelectedInterval({
                 ...selectedInterval,
-                start_idx: Math.round(parseFloat(e.target.value || 0) * PRH_HZ),
+                start_idx: toIdx(e.target.value),
               })
             }
             className="w-20 px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
-            aria-label="Interval start time in seconds"
+            aria-label={`Interval start time in ${unit === 'min' ? 'minutes' : 'seconds'}`}
           />
-          <span className="text-muted-foreground">s</span>
         </label>
         <label className="flex items-center gap-1 text-muted-foreground">
           End
           <input
             type="number"
             min={0}
-            max={totalDuration}
-            step={0.1}
-            value={endSec.toFixed(1)}
+            max={totalDuration / unitFactor}
+            step={unitStep}
+            value={fmtUnit(endSec)}
             onChange={(e) =>
               setSelectedInterval({
                 ...selectedInterval,
-                end_idx: Math.round(parseFloat(e.target.value || 0) * PRH_HZ),
+                end_idx: toIdx(e.target.value),
               })
             }
             className="w-20 px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
-            aria-label="Interval end time in seconds"
+            aria-label={`Interval end time in ${unit === 'min' ? 'minutes' : 'seconds'}`}
           />
-          <span className="text-muted-foreground">s</span>
         </label>
+        <select
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          className="px-1 py-1 rounded bg-muted border border-border text-foreground text-xs"
+          aria-label="Interval input unit"
+        >
+          <option value="s">sec</option>
+          <option value="min">min</option>
+        </select>
         <span className="text-muted-foreground font-medium">
           ({intervalDuration.toFixed(1)}s)
         </span>

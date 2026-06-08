@@ -37,6 +37,25 @@ export function formatTime(seconds, mode = 'seconds', deploymentStart = null) {
   return `${s.toFixed(1)}s`
 }
 
+// Duration formatted as SS.FF (zero-padded seconds, 2 decimals): 4.12 -> "04.12s".
+export function formatDurationSSFF(seconds) {
+  const s = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  const whole = Math.floor(s)
+  const frac = Math.round((s - whole) * 100)
+  // handle rounding spill (e.g. 4.999 -> 5.00)
+  const carry = frac === 100 ? 1 : 0
+  const intPart = String(whole + carry).padStart(2, '0')
+  const fracPart = String(carry ? 0 : frac).padStart(2, '0')
+  return `${intPart}.${fracPart}s`
+}
+
+// Extract HH:MM:SS clock from an event timestamp like "13:14:17.304000".
+export function clockFromTimestamp(ts) {
+  if (!ts) return ''
+  const m = String(ts).match(/(\d{1,2}:\d{2}:\d{2})/)
+  return m ? m[1] : String(ts)
+}
+
 // Accept ISO ("2026-05-28T14:05:06.860Z") or "YYYY-MM-DD HH:MM:SS.mmm".
 function parseDeploymentStart(value) {
   if (!value) return null
