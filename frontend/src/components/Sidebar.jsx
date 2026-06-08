@@ -35,7 +35,7 @@ export default function Sidebar() {
   const { selectedInterval, setSelectedInterval } = useTimelineStore()
   const { panels, togglePanel, resetLayout } = useLayoutStore()
   const [eventFilter, setEventFilter] = useState('')
-  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme } = useSettingsStore()
+  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram } = useSettingsStore()
 
   const wavRef = useRef(null)
   const prhRef = useRef(null)
@@ -226,6 +226,39 @@ export default function Sidebar() {
             />
             Light mode
           </label>
+          <label className="block text-xs text-muted-foreground mt-2">Spectrogram colorscale</label>
+          <select
+            value={spectrogram.colorscale}
+            onChange={(e) => setSpectrogram({ colorscale: e.target.value })}
+            className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+            aria-label="Spectrogram colorscale"
+          >
+            {['Viridis', 'Inferno', 'Jet', 'Greys'].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <div className="flex gap-2 mt-1">
+            <label className="flex-1 text-xs text-muted-foreground">
+              dB min
+              <input
+                type="number" placeholder="auto"
+                value={spectrogram.dbMin ?? ''}
+                onChange={(e) => setSpectrogram({ dbMin: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+                aria-label="Spectrogram dB minimum"
+              />
+            </label>
+            <label className="flex-1 text-xs text-muted-foreground">
+              dB max
+              <input
+                type="number" placeholder="auto"
+                value={spectrogram.dbMax ?? ''}
+                onChange={(e) => setSpectrogram({ dbMax: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+                aria-label="Spectrogram dB maximum"
+              />
+            </label>
+          </div>
         </Section>
 
         {/* Panels */}

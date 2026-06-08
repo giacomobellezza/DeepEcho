@@ -20,6 +20,9 @@ export const useSettingsStore = create(
       setSpeciesLock: (locked) => set({ speciesLock: locked }),
       theme: 'dark',
       setTheme: (t) => set({ theme: t }),
+      spectrogram: { colorscale: 'Viridis', dbMin: null, dbMax: null },
+      setSpectrogram: (patch) =>
+        set((s) => ({ spectrogram: { ...s.spectrogram, ...patch } })),
     }),
     { name: 'deepecho-settings' }
   )
