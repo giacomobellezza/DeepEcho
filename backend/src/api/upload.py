@@ -50,9 +50,11 @@ async def upload_files(
     temp_dir = os.path.join(tempfile.gettempdir(), f"session_{session_id}")
     os.makedirs(temp_dir, exist_ok=True)
 
-    wav_path = os.path.join(temp_dir, wav_file.filename)
-    prh_path = os.path.join(temp_dir, prh_csv.filename)
-    events_path = os.path.join(temp_dir, events_csv.filename)
+    # Folder uploads can carry a subdirectory prefix in the filename
+    # (e.g. "DP2/audio.wav"); keep only the basename so we write into temp_dir.
+    wav_path = os.path.join(temp_dir, os.path.basename(wav_file.filename))
+    prh_path = os.path.join(temp_dir, os.path.basename(prh_csv.filename))
+    events_path = os.path.join(temp_dir, os.path.basename(events_csv.filename))
 
     # Stream files to disk (no full-file RAM load)
     await _save_upload(wav_file, wav_path)
@@ -62,7 +64,7 @@ async def upload_files(
     # Optional deployment metadata file (JSON or plain-text, auto-detected)
     metadata = None
     if metadata_file is not None:
-        meta_path = os.path.join(temp_dir, metadata_file.filename)
+        meta_path = os.path.join(temp_dir, os.path.basename(metadata_file.filename))
         await _save_upload(metadata_file, meta_path)
         try:
             metadata = parse_metadata(meta_path)

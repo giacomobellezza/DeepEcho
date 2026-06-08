@@ -160,6 +160,50 @@ class TestUploadEndpoint:
         assert data["metadata"]["deployment_start"] == "2024-07-01 13:02:00.820"
         assert data["metadata"]["timezone"] == "UTC+2"
 
+    def test_upload_handles_folder_path_filenames(self):
+        """Folder uploads send filenames with a subdirectory prefix; the backend
+        must strip it and still save/process the files."""
+        client = TestClient(app)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sr = 16000
+            wav_path = os.path.join(tmpdir, "a.wav")
+            wavfile.write(wav_path, sr, np.random.randn(2000).astype(np.float32))
+
+            prh = pd.DataFrame({
+                "pitch_smoothed": [1.0, 2.0],
+                "roll_smoothed_wrapped": [1.0, 2.0],
+                "heading_smoothed_wrapped": [1.0, 2.0],
+                "depth_smoothed": [1.0, 2.0],
+                "speed_smoothed": [0.1, 0.2],
+                "Gy_Filt": [0.1, 0.2],
+            })
+            prh_path = os.path.join(tmpdir, "p.csv")
+            prh.to_csv(prh_path, index=False)
+
+            events = pd.DataFrame({
+                "Deployment_ID": ["dep_folder"],
+                "Type": ["creak"],
+                "DN_start_idx": [0],
+                "DN_end_idx": [1],
+            })
+            events_path = os.path.join(tmpdir, "e.csv")
+            events.to_csv(events_path, index=False)
+
+            with open(wav_path, "rb") as wf, open(prh_path, "rb") as pf, \
+                 open(events_path, "rb") as ef:
+                response = client.post(
+                    "/api/upload",
+                    files={
+                        # filenames include a folder prefix, like webkitdirectory sends
+                        "wav_file": ("DP2/a.wav", wf, "audio/wav"),
+                        "prh_csv": ("DP2/p.csv", pf, "text/csv"),
+                        "events_csv": ("DP2/e.csv", ef, "text/csv"),
+                    },
+                )
+
+        assert response.status_code == 200
+        assert response.json()["deployment_id"] == "dep_folder"
+
     def test_upload_response_structure(self):
         """Test that upload response has correct structure."""
         client = TestClient(app)
