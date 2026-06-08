@@ -6,9 +6,10 @@ import { useSettingsStore, SPECIES } from '../../stores/settingsStore'
 import { buildCetaceanTrace, hasModel } from '../../lib/cetaceanMesh'
 import { detectPreyCaptures } from '../../lib/preyDetection'
 import { usePlotTheme } from '../../hooks/usePlotTheme'
+import { eventColor } from '../../lib/utils'
 
 export default function TrajectoryPlot() {
-  const { analysisData, fetchTrajectory } = useDeploymentStore()
+  const { analysisData, deployment, fetchTrajectory } = useDeploymentStore()
   const { currentTime } = useTimelineStore()
   const { species } = useSettingsStore()
   const theme = usePlotTheme()
@@ -134,6 +135,41 @@ export default function TrajectoryPlot() {
       })
     }
 
+    // Acoustic events along the path, grouped by type. Each type is its own
+    // trace so the Plotly legend can toggle it on/off. Only events that fall
+    // inside the analysed interval map onto the trajectory.
+    const intervalStart = analysisData?.start_idx ?? 0
+    const intervalEnd = analysisData?.end_idx ?? intervalStart + n
+    const span = Math.max(1, intervalEnd - intervalStart)
+    const byType = {}
+    for (const ev of deployment?.events ?? []) {
+      const evStart = ev.start_idx ?? ev.DN_start_idx
+      const evEnd = ev.end_idx ?? ev.DN_end_idx ?? evStart
+      if (evStart == null) continue
+      const mid = (evStart + evEnd) / 2
+      if (mid < intervalStart || mid > intervalEnd) continue
+      const trajIdx = Math.min(n - 1, Math.max(0, Math.round(((mid - intervalStart) / span) * (n - 1))))
+      const type = ev.type || ev.Type || 'event'
+      ;(byType[type] ||= { x: [], y: [], z: [] })
+      byType[type].x.push(dx[trajIdx])
+      byType[type].y.push(dy[trajIdx])
+      byType[type].z.push(dz[trajIdx])
+    }
+    for (const [type, pts] of Object.entries(byType)) {
+      traces.push({
+        type: 'scatter3d', mode: 'markers',
+        x: pts.x, y: pts.y, z: pts.z,
+        name: `${type} (${pts.x.length})`,
+        marker: {
+          color: eventColor(type),
+          size: 4,
+          symbol: 'diamond',
+          line: { color: '#000', width: 1 },
+        },
+        hovertemplate: `${type}<br>Depth: %{z:.1f}m<extra></extra>`,
+      })
+    }
+
     return {
       data: traces,
       layout: {
@@ -153,7 +189,7 @@ export default function TrajectoryPlot() {
         },
       },
     }
-  }, [trajectoryData, currentTime, analysisData, speciesName, species, theme])
+  }, [trajectoryData, currentTime, analysisData, speciesName, species, theme, deployment])
 
   if (!trajectoryData?.dx) {
     return (

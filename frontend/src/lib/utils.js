@@ -5,6 +5,15 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
+// Stable color per event type, shared between the sidebar list and the 3D trajectory.
+export const EVENT_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899']
+export function eventColor(type) {
+  let h = 0
+  const s = String(type || '')
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return EVENT_COLORS[h % EVENT_COLORS.length]
+}
+
 // Format an elapsed-seconds value according to the chosen mode.
 // mode: 'seconds' | 'mmss' | 'hms' | 'absolute'
 // deploymentStart: ISO-ish string (from metadata) used only for 'absolute'.

@@ -3,14 +3,7 @@ import { useDeploymentStore } from '../stores/deploymentStore'
 import { useTimelineStore } from '../stores/timelineStore'
 import { useLayoutStore, PANEL_LABELS } from '../stores/layoutStore'
 import { useSettingsStore, SPECIES } from '../stores/settingsStore'
-import { formatDurationSSFF, clockFromTimestamp } from '../lib/utils'
-
-const EVENT_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899']
-function eventColor(type) {
-  let h = 0
-  for (let i = 0; i < type.length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0
-  return EVENT_COLORS[h % EVENT_COLORS.length]
-}
+import { formatDurationSSFF, clockFromTimestamp, eventColor } from '../lib/utils'
 
 function Section({ title, defaultOpen = false, extra, children }) {
   const [open, setOpen] = useState(defaultOpen)
