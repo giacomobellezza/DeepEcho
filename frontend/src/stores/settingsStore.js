@@ -23,6 +23,8 @@ export const useSettingsStore = create(
       spectrogram: { colorscale: 'Viridis', dbMin: null, dbMax: null },
       setSpectrogram: (patch) =>
         set((s) => ({ spectrogram: { ...s.spectrogram, ...patch } })),
+      timeFormat: 'seconds',
+      setTimeFormat: (f) => set({ timeFormat: f }),
     }),
     { name: 'deepecho-settings' }
   )

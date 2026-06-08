@@ -36,7 +36,7 @@ export default function Sidebar() {
   const { panels, togglePanel, resetLayout } = useLayoutStore()
   const [eventFilter, setEventFilter] = useState('')
   const [detected, setDetected] = useState({ wav: null, prh: null, events: null, metadata: null })
-  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram } = useSettingsStore()
+  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram, timeFormat, setTimeFormat } = useSettingsStore()
 
   const wavRef = useRef(null)
   const prhRef = useRef(null)
@@ -322,6 +322,20 @@ export default function Sidebar() {
               />
             </label>
           </div>
+          <label className="block text-xs text-muted-foreground mt-2">Time display</label>
+          <select
+            value={timeFormat}
+            onChange={(e) => setTimeFormat(e.target.value)}
+            className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+            aria-label="Time display format"
+          >
+            <option value="seconds">Seconds</option>
+            <option value="mmss">Minutes:Seconds</option>
+            <option value="hms">Hours:Minutes:Seconds</option>
+            <option value="absolute" disabled={!deployment?.metadata?.deployment_start}>
+              Absolute clock time
+            </option>
+          </select>
         </Section>
 
         {/* Panels */}

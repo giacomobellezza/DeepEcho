@@ -1,12 +1,16 @@
 import React from 'react'
 import { useDeploymentStore } from '../stores/deploymentStore'
 import { useTimelineStore } from '../stores/timelineStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { formatTime } from '../lib/utils'
 
 const PRH_HZ = 10
 
 export default function Timeline() {
   const { deployment, analysisData } = useDeploymentStore()
   const { currentTime, setCurrentTime, selectedInterval, setSelectedInterval, xRange, setXRange } = useTimelineStore()
+  const { timeFormat } = useSettingsStore()
+  const deploymentStart = deployment?.metadata?.deployment_start || null
 
   // Duration = current analyzed interval
   const intervalDuration = analysisData
@@ -26,7 +30,7 @@ export default function Timeline() {
       {/* Time scrubber — relative to analyzed interval */}
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground w-16 text-right">
-          {currentTime.toFixed(1)}s
+          {formatTime(currentTime, timeFormat, deploymentStart)}
         </span>
         <input
           type="range"
@@ -39,7 +43,7 @@ export default function Timeline() {
           aria-label={`Timeline scrubber, current time ${currentTime.toFixed(1)} seconds`}
         />
         <span className="text-xs text-muted-foreground w-16">
-          {intervalDuration.toFixed(1)}s
+          {formatTime(intervalDuration, timeFormat, deploymentStart)}
         </span>
       </div>
 
