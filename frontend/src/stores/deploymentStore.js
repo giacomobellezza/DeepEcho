@@ -8,13 +8,14 @@ export const useDeploymentStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
-  upload: async (wavFile, prhCsv, eventsCsv) => {
+  upload: async (wavFile, prhCsv, eventsCsv, metadataFile = null) => {
     set({ isLoading: true, error: null })
     try {
       const formData = new FormData()
       formData.append('wav_file', wavFile)
       formData.append('prh_csv', prhCsv)
       formData.append('events_csv', eventsCsv)
+      if (metadataFile) formData.append('metadata_file', metadataFile)
 
       const res = await fetch(`${API_BASE}/upload`, {
         method: 'POST',

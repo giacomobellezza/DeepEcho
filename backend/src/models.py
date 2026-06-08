@@ -9,6 +9,7 @@ class UploadResponse(BaseModel):
     duration_seconds: float
     spectrogram_preview: Dict[str, Any]
     events: List[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class PreviewResponse(BaseModel):

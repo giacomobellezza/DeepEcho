@@ -10,6 +10,7 @@ from src.processing.wav_loader import get_wav_info, read_wav_slice
 from src.processing.prh_parser import parse_prh_csv
 from src.processing.spectrogram import compute_preview_spectrogram, sample_spectrogram
 from src.processing.metrics import compute_jerk
+from src.processing.metadata_parser import parse_metadata
 from src.cache import get_session_cache, get_cache
 
 router = APIRouter()
@@ -36,6 +37,7 @@ async def upload_files(
     wav_file: UploadFile = File(...),
     prh_csv: UploadFile = File(...),
     events_csv: UploadFile = File(...),
+    metadata_file: UploadFile = File(None),
 ):
     """
     Upload audio and CSV files for analysis.
@@ -48,14 +50,27 @@ async def upload_files(
     temp_dir = os.path.join(tempfile.gettempdir(), f"session_{session_id}")
     os.makedirs(temp_dir, exist_ok=True)
 
-    wav_path = os.path.join(temp_dir, wav_file.filename)
-    prh_path = os.path.join(temp_dir, prh_csv.filename)
-    events_path = os.path.join(temp_dir, events_csv.filename)
+    # Folder uploads can carry a subdirectory prefix in the filename
+    # (e.g. "DP2/audio.wav"); keep only the basename so we write into temp_dir.
+    wav_path = os.path.join(temp_dir, os.path.basename(wav_file.filename))
+    prh_path = os.path.join(temp_dir, os.path.basename(prh_csv.filename))
+    events_path = os.path.join(temp_dir, os.path.basename(events_csv.filename))
 
     # Stream files to disk (no full-file RAM load)
     await _save_upload(wav_file, wav_path)
     await _save_upload(prh_csv, prh_path)
     await _save_upload(events_csv, events_path)
+
+    # Optional deployment metadata file (JSON or plain-text, auto-detected)
+    metadata = None
+    if metadata_file is not None:
+        meta_path = os.path.join(temp_dir, os.path.basename(metadata_file.filename))
+        await _save_upload(metadata_file, meta_path)
+        try:
+            metadata = parse_metadata(meta_path)
+        except Exception as e:  # never fail upload on bad metadata
+            print(f"Warning: metadata parse failed: {e}")
+            metadata = None
 
     # Get WAV metadata without loading audio
     wav_info = get_wav_info(wav_path)
@@ -116,6 +131,12 @@ async def upload_files(
             "type": row.get("Type", "unknown"),
             "start_idx": int(row.get("DN_start_idx", 0)),
             "end_idx": int(row.get("DN_end_idx", 0)),
+            "start_ts": (str(row["Start_duration_timestamp"])
+                         if "Start_duration_timestamp" in events_df.columns else None),
+            "end_ts": (str(row["End_duration_timestamp"])
+                       if "End_duration_timestamp" in events_df.columns else None),
+            "mean_ts": (str(row["Mean_duration_timestamp"])
+                        if "Mean_duration_timestamp" in events_df.columns else None),
         })
 
     # Cache session: paths + metadata only, NO audio arrays
@@ -129,6 +150,7 @@ async def upload_files(
         "events_path": events_path,
         "deployment_id": deployment_id,
         "events": events_list,
+        "metadata": metadata,
     }
 
     # Cache preview spectrogram (64x64)
@@ -156,4 +178,5 @@ async def upload_files(
         duration_seconds=duration_seconds,
         spectrogram_preview=spec_preview_serializable,
         events=events_list,
+        metadata=metadata,
     )

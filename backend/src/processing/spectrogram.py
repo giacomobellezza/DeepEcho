@@ -116,9 +116,9 @@ def compute_detailed_spectrogram(audio: np.ndarray, sample_rate: int) -> dict:
         - 'times': Array of time values in seconds
         - 'power': 2D array of power values (log scale)
     """
-    # High resolution parameters
-    nperseg = 4096
-    noverlap = 2048
+    # High resolution parameters: FFT 1024, 50% overlap
+    nperseg = 1024
+    noverlap = 512
 
     # Compute spectrogram
     freqs, times, Sxx = signal.spectrogram(

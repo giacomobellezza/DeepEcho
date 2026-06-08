@@ -60,17 +60,27 @@ into RAM.
   countershaded body, dorsal fin, and fluke, oriented live by the current pitch / roll / heading.
 - **Color-coded dive phases**: descent (blue), bottom (amber), ascent (green).
 - **Prey capture markers** (3σ jerk peaks, 1 s refractory) plotted on the 3D trajectory.
+- **Light & dark mode** that recolors the whole UI and every plot — light mode produces
+  white-background images suitable for presentation export.
+- **Configurable spectrogram**: adjustable dB contrast range (auto percentile defaults),
+  selectable colorscale (Viridis / Inferno / Jet / Greys), and a dB colorbar (FFT 1024, 50 % overlap).
+- **Flexible time display**: seconds, mm:ss, hh:mm:ss, or absolute clock time (when the
+  deployment metadata provides a start time).
 
 ### Workflow
-- **Drag-and-drop upload** of WAV + PRH CSV + Events CSV, or auto-load demo files on first paint.
+- **Folder upload**: select a whole deployment folder and the app auto-detects the WAV, PRH,
+  events, and optional metadata files by name/extension — or select each file manually as a fallback.
 - **Event navigation**: click a creak / click in the sidebar → analysis interval auto-set →
   charts re-render.
 - **Manual interval selection** in seconds, with keyboard scrubbing
   (Space = play/pause, ←/→ = step, Shift+arrow = 1 s, R = reset zoom, Esc = exit maximize).
 - **Audio playback** of the analyzed slice via Web Audio API (streamed from backend on demand).
+- **Deployment metadata** (start/end, timezone, GPS track, tag info) parsed from an optional
+  JSON or plain-text file and shown in the Statistics panel.
 - **CSV export** of full analysis (depth, speed, pitch, roll, heading, jerk, ODBA, VeDBA, MSA)
   and dive table.
-- **Persistent layout & settings** (panels, grid, species, theme) via `localStorage`.
+- **Persistent layout & settings** (panels, grid, species, theme, spectrogram view, time format)
+  via `localStorage`.
 
 ### Performance
 - Streamed WAV upload (8 MB chunks) — never read full audio into RAM.
@@ -173,6 +183,7 @@ Drop a deployment's three files into `frontend/public/` named:
 | `*.wav`                       | Hydrophone audio (mono or stereo, downmixed)       | 96–250 kHz   |
 | `pm*_10Hzprh_smoothed.csv`    | Filtered PRH + IMU (depth, speed, accel, gyro)     | 10 Hz        |
 | `AllSignals_DP*.csv`          | Acoustic events with 10 Hz sample indices          | event-based  |
+| metadata `.json` / `.txt`     | Optional: start/end, timezone, GPS track, tag info | per deployment |
 
 PRH columns the backend expects:
 `pitch_smoothed`, `roll_smoothed_wrapped`, `heading_smoothed_wrapped`, `depth_smoothed`,

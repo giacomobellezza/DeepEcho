@@ -5,11 +5,14 @@ import { useTimelineStore } from '../../stores/timelineStore'
 import { useSettingsStore, SPECIES } from '../../stores/settingsStore'
 import { buildCetaceanTrace, hasModel } from '../../lib/cetaceanMesh'
 import { detectPreyCaptures } from '../../lib/preyDetection'
+import { usePlotTheme } from '../../hooks/usePlotTheme'
+import { eventColor } from '../../lib/utils'
 
 export default function TrajectoryPlot() {
-  const { analysisData, fetchTrajectory } = useDeploymentStore()
+  const { analysisData, deployment, fetchTrajectory } = useDeploymentStore()
   const { currentTime } = useTimelineStore()
   const { species } = useSettingsStore()
+  const theme = usePlotTheme()
   const speciesName = SPECIES.find((s) => s.id === species)?.name ?? ''
   const [trajectoryData, setTrajectoryData] = useState(null)
 
@@ -55,7 +58,7 @@ export default function TrajectoryPlot() {
       Math.max(...dz) - Math.min(...dz),
       1
     )
-    const meshScale = extent * 0.10
+    const meshScale = extent * 0.16
 
     // Cetacean mesh trace — pass raw PRH values, rotation handles conventions
     const currentTrace = hasModel(species)
@@ -69,7 +72,7 @@ export default function TrajectoryPlot() {
           type: 'scatter3d', mode: 'markers',
           x: [dx[currentIdx]], y: [dy[currentIdx]], z: [dz[currentIdx]],
           name: 'Current',
-          marker: { color: '#ef4444', size: 8, symbol: 'circle' },
+          marker: { color: '#fde047', size: 12, symbol: 'circle', line: { color: '#000', width: 2 } },
           hovertemplate: 'Current position<extra></extra>',
         }
 
@@ -98,6 +101,14 @@ export default function TrajectoryPlot() {
       },
       // Cetacean mesh at current time
       currentTrace,
+      // High-contrast highlight at the current position (always visible)
+      {
+        type: 'scatter3d', mode: 'markers',
+        x: [dx[currentIdx]], y: [dy[currentIdx]], z: [dz[currentIdx]],
+        name: 'Position', showlegend: false,
+        marker: { color: '#fde047', size: 6, symbol: 'circle', line: { color: '#000', width: 1 } },
+        hovertemplate: 'Current position<br>Depth: %{z:.1f}m<extra></extra>',
+      },
       // Start marker
       {
         type: 'scatter3d', mode: 'markers',
@@ -124,26 +135,61 @@ export default function TrajectoryPlot() {
       })
     }
 
+    // Acoustic events along the path, grouped by type. Each type is its own
+    // trace so the Plotly legend can toggle it on/off. Only events that fall
+    // inside the analysed interval map onto the trajectory.
+    const intervalStart = analysisData?.start_idx ?? 0
+    const intervalEnd = analysisData?.end_idx ?? intervalStart + n
+    const span = Math.max(1, intervalEnd - intervalStart)
+    const byType = {}
+    for (const ev of deployment?.events ?? []) {
+      const evStart = ev.start_idx ?? ev.DN_start_idx
+      const evEnd = ev.end_idx ?? ev.DN_end_idx ?? evStart
+      if (evStart == null) continue
+      const mid = (evStart + evEnd) / 2
+      if (mid < intervalStart || mid > intervalEnd) continue
+      const trajIdx = Math.min(n - 1, Math.max(0, Math.round(((mid - intervalStart) / span) * (n - 1))))
+      const type = ev.type || ev.Type || 'event'
+      ;(byType[type] ||= { x: [], y: [], z: [] })
+      byType[type].x.push(dx[trajIdx])
+      byType[type].y.push(dy[trajIdx])
+      byType[type].z.push(dz[trajIdx])
+    }
+    for (const [type, pts] of Object.entries(byType)) {
+      traces.push({
+        type: 'scatter3d', mode: 'markers',
+        x: pts.x, y: pts.y, z: pts.z,
+        name: `${type} (${pts.x.length})`,
+        marker: {
+          color: eventColor(type),
+          size: 4,
+          symbol: 'diamond',
+          line: { color: '#000', width: 1 },
+        },
+        hovertemplate: `${type}<br>Depth: %{z:.1f}m<extra></extra>`,
+      })
+    }
+
     return {
       data: traces,
       layout: {
         scene: {
-          xaxis: { title: 'East (m)', color: '#a1a1aa', gridcolor: '#27272a' },
-          yaxis: { title: 'North (m)', color: '#a1a1aa', gridcolor: '#27272a' },
-          zaxis: { title: 'Depth (m)', color: '#a1a1aa', gridcolor: '#27272a', autorange: 'reversed' },
-          bgcolor: '#09090b',
+          xaxis: { title: 'East (m)', color: theme.axis, gridcolor: theme.grid },
+          yaxis: { title: 'North (m)', color: theme.axis, gridcolor: theme.grid },
+          zaxis: { title: 'Depth (m)', color: theme.axis, gridcolor: theme.grid, autorange: 'reversed' },
+          bgcolor: theme.plot,
           aspectmode: 'data',
         },
         margin: { t: 24, b: 10, l: 10, r: 10 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: theme.paper,
         showlegend: true,
         legend: {
-          x: 0, y: 1, font: { size: 10, color: '#a1a1aa' },
+          x: 0, y: 1, font: { size: 10, color: theme.axis },
           bgcolor: 'rgba(0,0,0,0)',
         },
       },
     }
-  }, [trajectoryData, currentTime, analysisData, speciesName, species])
+  }, [trajectoryData, currentTime, analysisData, speciesName, species, theme, deployment])
 
   if (!trajectoryData?.dx) {
     return (

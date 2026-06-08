@@ -108,6 +108,19 @@ def test_compute_detailed_spectrogram(sample_audio):
     assert np.all(power <= 100)
 
 
+def test_detailed_spectrogram_uses_1024_fft():
+    """Detailed spectrogram should use nperseg=1024 (513 frequency bins)."""
+    from scipy import signal
+
+    sr = 48000
+    audio = np.random.randn(sr).astype(np.float32)  # 1 second
+    result = compute_detailed_spectrogram(audio, sr)
+
+    # With nperseg=1024 the number of frequency bins is 1024//2 + 1 = 513
+    expected_freqs = signal.spectrogram(audio, fs=sr, nperseg=1024, noverlap=512)[0]
+    assert len(result["freqs"]) == len(expected_freqs) == 513
+
+
 def test_resolution_affects_output(sample_audio):
     """Test that different resolutions produce different sized outputs."""
     audio_data, sample_rate = sample_audio

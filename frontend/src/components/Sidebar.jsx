@@ -3,13 +3,7 @@ import { useDeploymentStore } from '../stores/deploymentStore'
 import { useTimelineStore } from '../stores/timelineStore'
 import { useLayoutStore, PANEL_LABELS } from '../stores/layoutStore'
 import { useSettingsStore, SPECIES } from '../stores/settingsStore'
-
-const EVENT_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899']
-function eventColor(type) {
-  let h = 0
-  for (let i = 0; i < type.length; i++) h = (h * 31 + type.charCodeAt(i)) >>> 0
-  return EVENT_COLORS[h % EVENT_COLORS.length]
-}
+import { formatDurationSSFF, clockFromTimestamp, eventColor } from '../lib/utils'
 
 function Section({ title, defaultOpen = false, extra, children }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -35,11 +29,22 @@ export default function Sidebar() {
   const { selectedInterval, setSelectedInterval } = useTimelineStore()
   const { panels, togglePanel, resetLayout } = useLayoutStore()
   const [eventFilter, setEventFilter] = useState('')
-  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme } = useSettingsStore()
+  const [detected, setDetected] = useState({ wav: null, prh: null, events: null, metadata: null })
+  const [manualSel, setManualSel] = useState({ wav: false, prh: false, events: false })
+  const { species, setSpecies, speciesLock, setSpeciesLock, theme, setTheme, spectrogram, setSpectrogram, timeFormat, setTimeFormat } = useSettingsStore()
 
   const wavRef = useRef(null)
   const prhRef = useRef(null)
   const eventsRef = useRef(null)
+  const folderRef = useRef(null)
+
+  // Enable directory selection on the folder input (non-standard attributes)
+  useEffect(() => {
+    if (folderRef.current) {
+      folderRef.current.setAttribute('webkitdirectory', '')
+      folderRef.current.setAttribute('directory', '')
+    }
+  }, [])
 
   // Auto-load demo files on mount
   useEffect(() => {
@@ -55,6 +60,13 @@ export default function Sidebar() {
         const wavBlob = await wavRes.blob()
         const prhBlob = await prhRes.blob()
         const eventsBlob = await eventsRes.blob()
+
+        // When the demo files are absent, the dev server's SPA fallback returns
+        // index.html with a 200, which would be uploaded as a bogus WAV. Verify
+        // the WAV really starts with the RIFF magic bytes before continuing.
+        const head = new Uint8Array(await wavBlob.slice(0, 4).arrayBuffer())
+        const isRiff = head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46
+        if (!isRiff) return
 
         const wavFile = new File([wavBlob], 'audio_demo.wav', { type: 'audio/wav' })
         const prhFile = new File([prhBlob], 'prh_demo.csv', { type: 'text/csv' })
@@ -74,6 +86,32 @@ export default function Sidebar() {
     const events = eventsRef.current?.files?.[0]
     if (!wav || !prh || !events) return
     await upload(wav, prh, events)
+  }
+
+  const classifyFile = (file) => {
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.wav')) return 'wav'
+    if (name.endsWith('.json') || name.includes('meta')) return 'metadata'
+    if (name.includes('prh') || name.includes('10hz')) return 'prh'
+    if (name.includes('signal') || name.includes('event')) return 'events'
+    if (name.endsWith('.txt')) return 'metadata'
+    if (name.endsWith('.csv')) return 'events' // last-resort csv
+    return null
+  }
+
+  const handleFolderSelect = (e) => {
+    const files = Array.from(e.target.files || [])
+    const next = { wav: null, prh: null, events: null, metadata: null }
+    for (const f of files) {
+      const role = classifyFile(f)
+      if (role && !next[role]) next[role] = f
+    }
+    setDetected(next)
+  }
+
+  const handleFolderUpload = async () => {
+    if (!detected.wav || !detected.prh || !detected.events) return
+    await upload(detected.wav, detected.prh, detected.events, detected.metadata)
   }
 
   const handleAnalyze = async () => {
@@ -164,22 +202,59 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto">
         {/* Upload */}
         <Section title="Upload" defaultOpen={!deployment}>
+          <label htmlFor="folder-input" className="block text-xs text-muted-foreground">Upload deployment folder</label>
+          <input
+            id="folder-input"
+            ref={folderRef}
+            type="file"
+            multiple
+            onChange={handleFolderSelect}
+            className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer"
+            aria-label="Select deployment folder"
+          />
+          {(detected.wav || detected.prh || detected.events || detected.metadata) && (
+            <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
+              <div>WAV: {detected.wav?.name || <span className="text-destructive">missing</span>}</div>
+              <div>PRH: {detected.prh?.name || <span className="text-destructive">missing</span>}</div>
+              <div>Events: {detected.events?.name || <span className="text-destructive">missing</span>}</div>
+              <div>Metadata: {detected.metadata?.name || <span className="italic">none (optional)</span>}</div>
+            </div>
+          )}
+          <button
+            onClick={handleFolderUpload}
+            disabled={isLoading || !detected.wav || !detected.prh || !detected.events}
+            className="w-full py-1.5 px-3 text-sm font-medium rounded bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors"
+            aria-label="Upload detected deployment folder"
+          >
+            {isLoading ? 'Uploading...' : 'Upload folder'}
+          </button>
+          <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">Or select files manually:</p>
           <div className="space-y-1.5">
             <label htmlFor="wav-input" className="block text-xs text-muted-foreground">WAV Audio</label>
-            <input id="wav-input" ref={wavRef} type="file" accept=".wav" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select WAV audio file" />
+            <input id="wav-input" ref={wavRef} type="file" accept=".wav" onChange={(e) => setManualSel((s) => ({ ...s, wav: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select WAV audio file" />
             <label htmlFor="prh-input" className="block text-xs text-muted-foreground">PRH CSV</label>
-            <input id="prh-input" ref={prhRef} type="file" accept=".csv,.txt" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select PRH motion data CSV" />
+            <input id="prh-input" ref={prhRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, prh: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select PRH motion data CSV" />
             <label htmlFor="events-input" className="block text-xs text-muted-foreground">Events CSV</label>
-            <input id="events-input" ref={eventsRef} type="file" accept=".csv,.txt" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select events CSV file" />
+            <input id="events-input" ref={eventsRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, events: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select events CSV file" />
           </div>
-          <button
-            onClick={handleUpload}
-            disabled={isLoading}
-            className="w-full py-1.5 px-3 text-sm font-medium rounded bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50 transition-colors"
-            aria-label="Upload WAV, PRH, and events files"
-          >
-            {isLoading ? 'Uploading...' : 'Upload Files'}
-          </button>
+          {(() => {
+            const manualReady = manualSel.wav && manualSel.prh && manualSel.events
+            return (
+              <button
+                onClick={handleUpload}
+                disabled={isLoading || !manualReady}
+                className={`w-full py-1.5 px-3 text-sm font-medium rounded transition-colors ${
+                  manualReady
+                    ? 'bg-accent text-accent-foreground hover:bg-accent/80'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                } disabled:opacity-50`}
+                aria-label="Upload WAV, PRH, and events files"
+                title={manualReady ? 'Upload selected files' : 'Select WAV, PRH and Events files first'}
+              >
+                {isLoading ? 'Uploading...' : 'Upload Files'}
+              </button>
+            )
+          })()}
           {error && <p className="text-xs text-destructive">{error}</p>}
           {deployment && (
             <p className="text-xs text-green-400">
@@ -226,6 +301,53 @@ export default function Sidebar() {
             />
             Light mode
           </label>
+          <label className="block text-xs text-muted-foreground mt-2">Spectrogram colorscale</label>
+          <select
+            value={spectrogram.colorscale}
+            onChange={(e) => setSpectrogram({ colorscale: e.target.value })}
+            className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+            aria-label="Spectrogram colorscale"
+          >
+            {['Viridis', 'Inferno', 'Jet', 'Greys'].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <div className="flex gap-2 mt-1">
+            <label className="flex-1 text-xs text-muted-foreground">
+              dB min
+              <input
+                type="number" placeholder="auto"
+                value={spectrogram.dbMin ?? ''}
+                onChange={(e) => setSpectrogram({ dbMin: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+                aria-label="Spectrogram dB minimum"
+              />
+            </label>
+            <label className="flex-1 text-xs text-muted-foreground">
+              dB max
+              <input
+                type="number" placeholder="auto"
+                value={spectrogram.dbMax ?? ''}
+                onChange={(e) => setSpectrogram({ dbMax: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+                aria-label="Spectrogram dB maximum"
+              />
+            </label>
+          </div>
+          <label className="block text-xs text-muted-foreground mt-2">Time display</label>
+          <select
+            value={timeFormat}
+            onChange={(e) => setTimeFormat(e.target.value)}
+            className="w-full px-2 py-1 rounded bg-muted border border-border text-foreground text-xs"
+            aria-label="Time display format"
+          >
+            <option value="seconds">Seconds</option>
+            <option value="mmss">Minutes:Seconds</option>
+            <option value="hms">Hours:Minutes:Seconds</option>
+            <option value="absolute" disabled={!deployment?.metadata?.deployment_start}>
+              Absolute clock time
+            </option>
+          </select>
         </Section>
 
         {/* Panels */}
@@ -272,6 +394,7 @@ export default function Sidebar() {
                 const color = eventColor(type)
                 const startIdx = event.DN_start_idx || event.start_idx
                 const endIdx = event.DN_end_idx || event.end_idx
+                const clock = clockFromTimestamp(event.start_ts)
                 const isActive = selectedInterval.start_idx === startIdx && selectedInterval.end_idx === endIdx
                 return (
                   <button
@@ -283,9 +406,10 @@ export default function Sidebar() {
                     aria-label={`Jump to ${type} event at samples ${startIdx}-${endIdx}`}
                   >
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                    <span className="font-medium text-foreground">{type}</span>
-                    <span className="text-muted-foreground ml-auto">
-                      {((endIdx - startIdx) / 10).toFixed(0)}s
+                    <span className="font-medium text-foreground truncate">{type}</span>
+                    {clock && <span className="text-muted-foreground font-mono ml-auto">{clock}</span>}
+                    <span className={`text-muted-foreground font-mono ${clock ? 'w-14 text-right' : 'ml-auto'}`}>
+                      {formatDurationSSFF((endIdx - startIdx) / 10)}
                     </span>
                   </button>
                 )
