@@ -29,7 +29,8 @@ function Row({ label, value, unit = '', tip }) {
 }
 
 export default function StatsPanel() {
-  const { analysisData } = useDeploymentStore()
+  const { analysisData, deployment } = useDeploymentStore()
+  const meta = deployment?.metadata
 
   const s = useMemo(() => {
     if (!analysisData) return null
@@ -58,7 +59,7 @@ export default function StatsPanel() {
     return { duration, depth, speed, jerk, pitch, odba, distance, odbaIntegral }
   }, [analysisData])
 
-  if (!s) {
+  if (!s && !meta) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         Run analysis to see statistics
@@ -70,6 +71,24 @@ export default function StatsPanel() {
 
   return (
     <div className="p-3 overflow-y-auto h-full text-sm">
+      {meta && (
+        <div className="mb-3 pb-2 border-b border-border">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Deployment</div>
+          {meta.title && <Row label="Title" value={meta.title} tip="Deployment title" />}
+          {meta.deployment_id && <Row label="ID" value={meta.deployment_id} tip="Deployment ID" />}
+          {meta.species && <Row label="Species" value={meta.species} tip="Species" />}
+          {meta.project && <Row label="Project" value={meta.project} tip="Project / institution" />}
+          {meta.deployment_start && <Row label="Start" value={meta.deployment_start} tip="Deployment start" />}
+          {meta.deployment_end && <Row label="End" value={meta.deployment_end} tip="Deployment end" />}
+          {meta.timezone && <Row label="Timezone" value={meta.timezone} tip="Local timezone" />}
+          {meta.additional_metadata?.tag_model && <Row label="Tag" value={meta.additional_metadata.tag_model} tip="Tag model" />}
+          {meta.additional_metadata?.sampling_rate_audio != null && <Row label="Audio SR" value={meta.additional_metadata.sampling_rate_audio} unit="Hz" tip="Audio sampling rate" />}
+          {meta.additional_metadata?.sampling_rate_sensors != null && <Row label="Sensor SR" value={meta.additional_metadata.sampling_rate_sensors} unit="Hz" tip="Sensor sampling rate" />}
+          {meta.gps_track?.length > 0 && <Row label="GPS points" value={meta.gps_track.length} tip="Number of GPS fixes in metadata" />}
+          {meta.notes && <Row label="Notes" value={meta.notes} tip="Deployment notes" />}
+        </div>
+      )}
+      {s && (
       <div className="grid grid-cols-1 gap-0">
         <Row label="Duration" value={fmt(s.duration, 1)} unit="s"
           tip="Length of the analysed interval" />
@@ -110,6 +129,7 @@ export default function StatsPanel() {
         <Row label="Samples" value={analysisData.depth?.length ?? 0}
           tip="Number of PRH samples (10 Hz)" />
       </div>
+      )}
     </div>
   )
 }
