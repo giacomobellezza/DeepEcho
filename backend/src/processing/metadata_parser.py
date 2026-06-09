@@ -42,30 +42,36 @@ def parse_metadata(path: str) -> dict:
 
 
 def _normalize_json(d: dict) -> dict:
+    # Two shapes are supported: a flat schema (legacy) and a nested schema with
+    # `deployment` / `date` / `additional_metadata` objects plus a
+    # `gps_track_log` list. Nested values take priority, falling back to flat.
+    dep = d.get("deployment") or {}
+    date = d.get("date") or {}
     add = d.get("additional_metadata") or {}
     result = _empty()
     result.update({
         "title": d.get("title"),
-        "deployment_id": d.get("deployment_id") or d.get("animal_id"),
-        "species": d.get("species"),
-        "project": d.get("research_group") or d.get("project"),
-        "notes": d.get("notes"),
-        "deployment_start": d.get("deployment_start"),
-        "deployment_end": d.get("deployment_end"),
-        "timezone": d.get("timezone"),
+        "deployment_id": dep.get("id") or d.get("deployment_id") or d.get("animal_id"),
+        "species": dep.get("species") or d.get("species"),
+        "project": dep.get("project") or d.get("research_group") or d.get("project"),
+        "notes": dep.get("notes") or d.get("notes"),
+        "deployment_start": date.get("deployment_start") or d.get("deployment_start"),
+        "deployment_end": date.get("deployment_end") or d.get("deployment_end"),
+        "timezone": date.get("timezone") or d.get("timezone"),
         "gps_track": [
             {
-                "label": p.get("label"),
+                # nested points use `event`; flat points use `label`
+                "label": p.get("label") or p.get("event"),
                 "timestamp": p.get("timestamp"),
                 "latitude": p.get("latitude"),
                 "longitude": p.get("longitude"),
             }
-            for p in (d.get("gps_track") or [])
+            for p in (d.get("gps_track") or d.get("gps_track_log") or [])
         ],
         "additional_metadata": {
             "tag_model": add.get("tag_model"),
-            "sampling_rate_audio": add.get("sampling_rate_audio"),
-            "sampling_rate_sensors": add.get("sampling_rate_sensors"),
+            "sampling_rate_audio": add.get("sampling_rate_audio") or add.get("sampling_rate_audio_hz"),
+            "sampling_rate_sensors": add.get("sampling_rate_sensors") or add.get("sampling_rate_sensors_hz"),
         },
     })
     return result

@@ -4,6 +4,7 @@ from src.api.upload import router as upload_router
 from src.api.preview import router as preview_router
 from src.api.analyze import router as analyze_router
 from src.api.trajectory import router as trajectory_router
+from src.api.track import router as track_router
 from src.api.audio_stream import router as audio_stream_router
 
 app = FastAPI(
@@ -26,6 +27,7 @@ app.include_router(upload_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api")
 app.include_router(trajectory_router, prefix="/api")
+app.include_router(track_router, prefix="/api")
 app.include_router(audio_stream_router, prefix="/api")
 
 

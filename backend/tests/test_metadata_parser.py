@@ -40,6 +40,49 @@ def test_parse_json_metadata():
     assert result["additional_metadata"]["sampling_rate_audio"] == 192000
 
 
+def test_parse_nested_json_metadata():
+    """Nested schema: deployment/date/additional_metadata + gps_track_log."""
+    with tempfile.TemporaryDirectory() as tmp:
+        data = {
+            "deployment": {
+                "id": "pm20240701-CD3",
+                "species": "Physeter macrocephalus",
+                "project": "DIVES / SZN",
+                "notes": ["Photogrammetry", "Biopsy"],
+            },
+            "date": {
+                "deployment_start": "2024-07-01T13:02:00.820+02:00",
+                "deployment_end": "2024-07-01T21:21:48.620+02:00",
+                "timezone": "UTC+2",
+            },
+            "gps_track_log": [
+                {"point": 1, "event": "Tag On", "timestamp": "2024-07-01T13:03:01.000+02:00",
+                 "latitude": 37.1118, "longitude": 15.3438},
+                {"point": 2, "event": "Surface 1", "timestamp": "2024-07-01T13:55:43.000+02:00",
+                 "latitude": 37.1228, "longitude": 15.3351},
+            ],
+            "additional_metadata": {
+                "tag_model": "CATS Diary CD3",
+                "sampling_rate_audio_hz": 192000,
+                "sampling_rate_sensors_hz": 400,
+            },
+        }
+        path = _write(tmp, "nested.json", json.dumps(data))
+        result = parse_metadata(path)
+
+    assert result["deployment_id"] == "pm20240701-CD3"
+    assert result["species"] == "Physeter macrocephalus"
+    assert result["project"] == "DIVES / SZN"
+    assert result["deployment_start"] == "2024-07-01T13:02:00.820+02:00"
+    assert result["timezone"] == "UTC+2"
+    assert len(result["gps_track"]) == 2
+    assert result["gps_track"][0]["label"] == "Tag On"
+    assert result["gps_track"][0]["latitude"] == pytest.approx(37.1118)
+    assert result["additional_metadata"]["tag_model"] == "CATS Diary CD3"
+    assert result["additional_metadata"]["sampling_rate_audio"] == 192000
+    assert result["additional_metadata"]["sampling_rate_sensors"] == 400
+
+
 def test_parse_text_metadata_dp1():
     text = """--- GENERAL INFO ---
 Deployment ID:    pm20240701-CD3

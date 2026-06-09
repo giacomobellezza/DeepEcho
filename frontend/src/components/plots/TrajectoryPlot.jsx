@@ -99,16 +99,8 @@ export default function TrajectoryPlot() {
         },
         hovertemplate: 'X: %{x:.1f}m<br>Y: %{y:.1f}m<br>Depth: %{z:.1f}m<extra></extra>',
       },
-      // Cetacean mesh at current time
+      // Cetacean mesh at current time (the shape is the position indicator)
       currentTrace,
-      // High-contrast highlight at the current position (always visible)
-      {
-        type: 'scatter3d', mode: 'markers',
-        x: [dx[currentIdx]], y: [dy[currentIdx]], z: [dz[currentIdx]],
-        name: 'Position', showlegend: false,
-        marker: { color: '#fde047', size: 6, symbol: 'circle', line: { color: '#000', width: 1 } },
-        hovertemplate: 'Current position<br>Depth: %{z:.1f}m<extra></extra>',
-      },
       // Start marker
       {
         type: 'scatter3d', mode: 'markers',

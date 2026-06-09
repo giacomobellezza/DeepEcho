@@ -8,6 +8,7 @@ const DEFAULT_PANELS = [
   { id: 'jerkFluke', type: 'jerkFluke', visible: true },
   { id: 'waveform', type: 'waveform', visible: false },
   { id: 'trajectory', type: 'trajectory', visible: false },
+  { id: 'gpsMap', type: 'gpsMap', visible: false },
   { id: 'stats', type: 'stats', visible: true },
   { id: 'dives', type: 'dives', visible: true },
   { id: 'energy', type: 'energy', visible: false },
@@ -20,9 +21,10 @@ const DEFAULT_LAYOUT = [
   { i: 'jerkFluke', x: 6, y: 4, w: 6, h: 4, minW: 3, minH: 3 },
   { i: 'waveform', x: 0, y: 8, w: 12, h: 3, minW: 4, minH: 2 },
   { i: 'trajectory', x: 0, y: 11, w: 6, h: 5, minW: 3, minH: 3 },
-  { i: 'stats', x: 6, y: 11, w: 6, h: 4, minW: 3, minH: 3 },
-  { i: 'dives', x: 0, y: 16, w: 12, h: 6, minW: 4, minH: 4 },
-  { i: 'energy', x: 0, y: 22, w: 12, h: 4, minW: 4, minH: 3 },
+  { i: 'gpsMap', x: 6, y: 11, w: 6, h: 5, minW: 3, minH: 3 },
+  { i: 'stats', x: 0, y: 16, w: 6, h: 4, minW: 3, minH: 3 },
+  { i: 'dives', x: 0, y: 20, w: 12, h: 6, minW: 4, minH: 4 },
+  { i: 'energy', x: 0, y: 26, w: 12, h: 4, minW: 4, minH: 3 },
 ]
 
 export const PANEL_LABELS = {
@@ -32,6 +34,7 @@ export const PANEL_LABELS = {
   jerkFluke: 'Jerk & Fluke Stroke',
   waveform: 'Audio Waveform',
   trajectory: '3D Trajectory',
+  gpsMap: 'GPS Track Map',
   stats: 'Statistics',
   dives: 'Dive Profile & Table',
   energy: 'ODBA / VeDBA / MSA',
@@ -69,7 +72,30 @@ export const useLayoutStore = create(
     }),
     {
       name: 'deepecho-layout',
+      version: 2,
       partialize: (s) => ({ panels: s.panels, gridLayout: s.gridLayout }),
+      // Union persisted panels/layout with the current defaults so panels added
+      // in newer versions (e.g. gpsMap) appear for users with a cached layout,
+      // while preserving the user's existing visibility/positions.
+      merge: (persisted, current) => {
+        const p = persisted || {}
+        const panelIds = new Set((p.panels || []).map((x) => x.id))
+        const panels = [
+          ...(p.panels || []),
+          ...DEFAULT_PANELS.filter((d) => !panelIds.has(d.id)),
+        ]
+        const layoutIds = new Set((p.gridLayout || []).map((x) => x.i))
+        const gridLayout = [
+          ...(p.gridLayout || []),
+          ...DEFAULT_LAYOUT.filter((d) => !layoutIds.has(d.i)),
+        ]
+        return {
+          ...current,
+          ...p,
+          panels: panels.length ? panels : DEFAULT_PANELS,
+          gridLayout: gridLayout.length ? gridLayout : DEFAULT_LAYOUT,
+        }
+      },
     }
   )
 )

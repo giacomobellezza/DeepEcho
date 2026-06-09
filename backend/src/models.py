@@ -36,6 +36,22 @@ class TrajectoryResponse(BaseModel):
     dz: List[float]
 
 
+class TrackRequest(BaseModel):
+    deployment_id: str
+
+
+class TrackResponse(BaseModel):
+    # Reconstructed geographic track (decimated): parallel arrays
+    lat: List[float]
+    lon: List[float]
+    depth: List[float]
+    # Total source PRH frames (10 Hz) — lets the client map an absolute PRH
+    # index onto the uniformly-decimated arrays for timeline-synced position.
+    frames: int
+    # Raw GPS surface fixes from the deployment metadata
+    fixes: List[Dict[str, Any]]
+
+
 class AnalyzeResponse(BaseModel):
     deployment_id: str
     start_idx: int

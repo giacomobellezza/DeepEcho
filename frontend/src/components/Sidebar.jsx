@@ -36,6 +36,7 @@ export default function Sidebar() {
   const wavRef = useRef(null)
   const prhRef = useRef(null)
   const eventsRef = useRef(null)
+  const metaRef = useRef(null)
   const folderRef = useRef(null)
 
   // Enable directory selection on the folder input (non-standard attributes)
@@ -84,8 +85,9 @@ export default function Sidebar() {
     const wav = wavRef.current?.files?.[0]
     const prh = prhRef.current?.files?.[0]
     const events = eventsRef.current?.files?.[0]
+    const meta = metaRef.current?.files?.[0] || null
     if (!wav || !prh || !events) return
-    await upload(wav, prh, events)
+    await upload(wav, prh, events, meta)
   }
 
   const classifyFile = (file) => {
@@ -236,6 +238,8 @@ export default function Sidebar() {
             <input id="prh-input" ref={prhRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, prh: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select PRH motion data CSV" />
             <label htmlFor="events-input" className="block text-xs text-muted-foreground">Events CSV</label>
             <input id="events-input" ref={eventsRef} type="file" accept=".csv,.txt" onChange={(e) => setManualSel((s) => ({ ...s, events: !!e.target.files?.length }))} className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select events CSV file" />
+            <label htmlFor="meta-input" className="block text-xs text-muted-foreground">Metadata <span className="italic">(optional — JSON, enables GPS map)</span></label>
+            <input id="meta-input" ref={metaRef} type="file" accept=".json,.txt" className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-muted file:text-foreground hover:file:bg-border cursor-pointer" aria-label="Select optional deployment metadata file" />
           </div>
           {(() => {
             const manualReady = manualSel.wav && manualSel.prh && manualSel.events

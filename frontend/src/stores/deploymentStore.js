@@ -81,5 +81,19 @@ export const useDeploymentStore = create((set, get) => ({
     }
   },
 
+  fetchTrack: async (deploymentId) => {
+    try {
+      const res = await fetch(`${API_BASE}/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deployment_id: deploymentId }),
+      })
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  },
+
   reset: () => set({ deployment: null, analysisData: null, error: null }),
 }))

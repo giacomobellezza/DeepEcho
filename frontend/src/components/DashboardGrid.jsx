@@ -10,6 +10,7 @@ import PRHPlot from './plots/PRHPlot'
 import JerkFlukePlot from './plots/JerkFlukePlot'
 import WaveformPlot from './plots/WaveformPlot'
 import TrajectoryPlot from './plots/TrajectoryPlot'
+import GpsMapPlot from './plots/GpsMapPlot'
 import StatsPanel from './plots/StatsPanel'
 import DivePanel from './plots/DivePanel'
 import EnergyPlot from './plots/EnergyPlot'
@@ -23,6 +24,7 @@ const PLOT_COMPONENTS = {
   jerkFluke: JerkFlukePlot,
   waveform: WaveformPlot,
   trajectory: TrajectoryPlot,
+  gpsMap: GpsMapPlot,
   stats: StatsPanel,
   dives: DivePanel,
   energy: EnergyPlot,
